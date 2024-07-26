@@ -3,7 +3,7 @@
 
 #define DEBOUNCE_TICKS 5 // 5ms
 
-#define LONG_TICKS 2000 // 2s
+#define LONG_TICKS 1000 // 1s
 
 #define RESET_DATA 0
 
@@ -128,7 +128,6 @@ static int8_t keyScan(struct Key_Device *pDev)
             // 如果当前电平与按键触发电平不同, 表示按键抬起
             if (current_key_level != key_private->data.active_level)
             {
-                __tick = 0;
                 key_private->data.key_press_tick = key_private->func.getSysTick();
                 key_private->data.key_state = PRESS_UP;
                 key_private->func.keyCallback[PRESS_UP]();
@@ -147,7 +146,6 @@ static int8_t keyScan(struct Key_Device *pDev)
             // 如果当前电平与按键触发电平不同, 表示按键抬起
             if (current_key_level != key_private->data.active_level)
             {
-                __tick = 0;
                 key_private->data.key_state = PRESS_UP;
                 key_private->func.keyCallback[PRESS_UP]();
             }
