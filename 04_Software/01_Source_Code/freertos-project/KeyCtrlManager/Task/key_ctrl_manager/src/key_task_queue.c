@@ -12,8 +12,8 @@ extern QueueHandle_t keyCtrlQueueHandle;
 
 TaskHandle_t keyTaskHandle;
 
-static KeyDevice *__user_key_handle;
-static MANAGE_KEY_EVENT __key_event_val;
+static struct Key_Device *__user_key_handle;
+static manage_key_event_t __key_event_val;
 
 int8_t readUserKeyPin(void)
 {
@@ -34,9 +34,10 @@ void userKeyLongPressed(void)
     __key_event_val = KEY_LONG_EVENT;
 }
 
-void keyDeviceCreate(KeyDevice *key_handle)
+/* 初始化按键设备 */
+void keyDeviceCreate(struct Key_Device **key_handle)
 {
-    key_handle = getKeyDevice(USER_KEY);
+    *key_handle = getKeyDevice(USER_KEY);
 
     if (NULL == key_handle)
     {
@@ -44,28 +45,18 @@ void keyDeviceCreate(KeyDevice *key_handle)
         return;
     }
 
-    key_handle->keyInit(key_handle,
-                        RESET,
-                        readUserKeyPin,
-                        HAL_GetTick);
+    (*key_handle)->keyInit(*key_handle, RESET, readUserKeyPin, HAL_GetTick);
 
-    key_handle->keyBindingEvent(key_handle,
-                                NONE_PRESS,
-                                NULL);
+    (*key_handle)->keyBindingEvent(*key_handle, NONE_PRESS, NULL);
 
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_DOWN,
-                                userKeyPressed);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_DOWN, userKeyPressed);
 
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_UP,
-                                NULL);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_UP, NULL);
 
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_LONG,
-                                userKeyLongPressed);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_LONG, userKeyLongPressed);
 }
 
+/* 扫描按键状态并发送到消息队列 */
 void keyTaskFunction(void *args)
 {
     BaseType_t isQueueSend = pdFAIL;
@@ -101,11 +92,12 @@ void keyTaskFunction(void *args)
     }
 }
 
+/* 按键任务创建 */
 void keyTaskInit(void)
 {
     BaseType_t isTaskCreate = pdFAIL;
 
-    keyDeviceCreate(__user_key_handle);
+    keyDeviceCreate(&__user_key_handle);
 
     isTaskCreate = xTaskCreate(keyTaskFunction,
                                "key_task",

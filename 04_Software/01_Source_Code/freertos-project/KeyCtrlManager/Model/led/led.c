@@ -3,26 +3,26 @@
 #include "gpio.h"
 
 /* 定义LED对象私有属性 */
-typedef struct led_device_data_t
+struct led_private_data_t
 {
     GPIO_TypeDef *GPIO_PORT;
     uint16_t GPIO_PIN;
-    pgpiohandle_t pgpio_fun;
-} LedDevData;
-
-/* LED1对象的私有属性初始化 */
-static LedDevData __g_led1_device_data = {
-    .GPIO_PORT = LED_GPIO_Port,
-    .GPIO_PIN = LED_Pin,
-    .pgpio_fun = NULL,
+    pgpio_interface_t gpio;
 };
 
-int ledInit(LedDevice *pled_device)
-{
-    LedDevData *data = (LedDevData *)pled_device->private_data;
+/* LED1对象的私有属性初始化 */
+static struct led_private_data_t __led1_device_data = {
+    .GPIO_PORT = LED_GPIO_Port,
+    .GPIO_PIN = LED_Pin,
+    .gpio = NULL,
+};
 
-    data->pgpio_fun = get_gpio_handle();
-    if (!data->pgpio_fun)
+int ledInit(struct LED_Device *pDev)
+{
+    struct led_private_data_t *data = (struct led_private_data_t *)pDev->priv_data;
+
+    data->gpio = get_gpio_handle();
+    if (!data->gpio)
     {
         return -1;
     }
@@ -30,28 +30,28 @@ int ledInit(LedDevice *pled_device)
     return 0;
 }
 
-int ledDeviceControl(LedDevice *pled_device, LED_STATE led_state)
+int ledControl(struct LED_Device *pDev, led_state_t state)
 {
-    LedDevData *data = pled_device->private_data;
+    struct led_private_data_t *data = pDev->priv_data;
 
-    if (!pled_device)
+    if (!pDev)
     {
         return -1;
     }
 
-    switch (led_state)
+    switch (state)
     {
     case ON:
-        data->pgpio_fun->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, HIGH_LEVEL);
-        pled_device->led_state = ON;
+        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, HIGH_LEVEL);
+        pDev->state = ON;
         return 1;
     case OFF:
-        data->pgpio_fun->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, LOW_LEVEL);
-        pled_device->led_state = OFF;
+        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, LOW_LEVEL);
+        pDev->state = OFF;
         return 0;
     case Toggle:
-        data->pgpio_fun->pfgpio_toggle_pin(data->GPIO_PORT, data->GPIO_PIN);
-        pled_device->led_state = Toggle;
+        data->gpio->pfgpio_toggle_pin(data->GPIO_PORT, data->GPIO_PIN);
+        pDev->state = Toggle;
         return 2;
     default:
         return -1;
@@ -59,12 +59,12 @@ int ledDeviceControl(LedDevice *pled_device, LED_STATE led_state)
 }
 
 /* 实例化LED1 设备 */
-LedDevice g_led1_device = {
-    .led_type = LED_BLUE_D2,
-    .led_state = OFF,
+struct LED_Device g_led1_device = {
+    .type = LED_BLUE_D2,
+    .state = OFF,
     .ledInit = ledInit,
-    .ledControl = ledDeviceControl,
+    .ledControl = ledControl,
     .setLedBrightness = NULL,
     .setLedColor = NULL,
-    .private_data = &__g_led1_device_data,
+    .priv_data = &__led1_device_data,
 };

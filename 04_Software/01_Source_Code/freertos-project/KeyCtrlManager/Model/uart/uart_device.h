@@ -40,6 +40,6 @@ struct UART_Device
 };
 
 /* Functions ----------------------------------------------------------------*/
-struct UART_Device *GetUARTDevice(char *name);
+struct UART_Device *getUARTDevice(char *name);
 
 #endif /* __UART_DEVICE_H */

@@ -1,23 +1,19 @@
-#include <stdint.h>
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "task.h"
-#include "cmsis_os.h"
 #include "led_device.h"
+#include <stddef.h>
 
-extern LedDevice g_led1_device;
+extern struct LED_Device g_led1_device;
 
-static LedDevice *__g_led_device_set[LED_TYPE_MAX] = {
+static struct LED_Device *__led_device_set[LED_TYPE_NUM] = {
     &g_led1_device,
 };
 
-pLedDevice getLedDevice(LED_TYPE led_type)
+struct LED_Device *getLedDevice(led_type_t type)
 {
     int i = 0;
-    for (i = 0; i < LED_TYPE_MAX; i++)
+    for (i = 0; i < LED_TYPE_NUM; i++)
     {
-        if (led_type == __g_led_device_set[i]->led_type)
-            return __g_led_device_set[i];
+        if (type == __led_device_set[i]->type)
+            return __led_device_set[i];
     }
 
     return NULL;

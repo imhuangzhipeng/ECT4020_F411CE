@@ -11,7 +11,7 @@ extern QueueHandle_t ledCtrlQueueHandle;
 
 TaskHandle_t ledTaskHandle;
 
-static LedDevice *__led_b1_handle;
+static struct LED_Device *__led_b1_handle;
 
 void ledToggle(void)
 {
@@ -28,7 +28,8 @@ void ledFlash(void)
     }
 }
 
-void ledDeviceCreate(LedDevice *led_handle)
+/* 初始化LED设备 */
+void ledDeviceCreate(struct LED_Device *led_handle)
 {
     led_handle = getLedDevice(LED_BLUE_D2);
 
@@ -38,25 +39,26 @@ void ledDeviceCreate(LedDevice *led_handle)
         return;
     }
 
-    register_gpio_funtion(NULL,
-                          HAL_GPIO_WritePin,
-                          HAL_GPIO_ReadPin,
-                          HAL_GPIO_TogglePin);
+    register_gpio_function(NULL,
+                           HAL_GPIO_WritePin,
+                           HAL_GPIO_ReadPin,
+                           HAL_GPIO_TogglePin);
 
     led_handle->ledInit(led_handle);
 }
 
+/* 接收按键管理任务的消息并根据消息队列的指令执行LED控制函数 */
 void ledTaskFunction(void *args)
 {
     BaseType_t isQueueRecv = pdFAIL;
 
-    MANAGE_LED_CTRL recvLedCtrlCmd = LED_UNDO;
+    manage_led_ctl_cmd_t led_ctl_cmd = LED_UNDO;
 
     while (1)
     {
         // receive data from queue
         isQueueRecv = xQueueReceive(ledCtrlQueueHandle,
-                                    (void *)&recvLedCtrlCmd,
+                                    (void *)&led_ctl_cmd,
                                     portMAX_DELAY);
         if (isQueueRecv != pdPASS)
         {
@@ -64,10 +66,10 @@ void ledTaskFunction(void *args)
             continue;
         }
 #ifdef DEBUG
-        osPrintf("recvLedCtrlCmd = %d \r\n", recvLedCtrlCmd);
+        osPrintf("led_ctl_cmd = %d \r\n", led_ctl_cmd);
 #endif
 
-        switch (recvLedCtrlCmd)
+        switch (led_ctl_cmd)
         {
         case LED_TOGGLE:
             ledToggle();
@@ -83,6 +85,7 @@ void ledTaskFunction(void *args)
     }
 }
 
+/* 创建LED任务 */
 void ledTaskInit(void)
 {
     BaseType_t isTaskCreate = pdFAIL;

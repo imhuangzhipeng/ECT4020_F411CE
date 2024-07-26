@@ -31,9 +31,9 @@
     ((type *)((char *)ptr - (unsigned int)&((type *)0)->member))
 
 /* Variables -----------------------------------------------------------------*/
-typedef struct device_node_t
+typedef struct DeviceNode
 {
-    struct device_node_t *pnext;
+    struct DeviceNode *pnext;
 } DeviceNode,*pDeviceNode;
 
 /* Functions ----------------------------------------------------------------*/

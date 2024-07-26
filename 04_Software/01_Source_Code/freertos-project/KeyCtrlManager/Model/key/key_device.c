@@ -1,19 +1,19 @@
 #include "key_device.h"
 #include <stddef.h>
 
-extern KeyDevice g_user_key;
+extern struct Key_Device g_user_key;
 
-static KeyDevice *__g_key_device_set[KEY_NUM_MAX] = {
+static struct Key_Device *__key_device_set[KEY_TYPE_NUM] = {
     &g_user_key,
 };
 
-pKeyDevice getKeyDevice(KEY_TYPE key_type)
+struct Key_Device *getKeyDevice(key_type_t type)
 {
     int i = 0;
-    for (i = 0; i < KEY_NUM_MAX; i++)
+    for (i = 0; i < KEY_TYPE_NUM; i++)
     {
-        if (key_type == __g_key_device_set[i]->key_type)
-            return __g_key_device_set[i];
+        if (type == __key_device_set[i]->type)
+            return __key_device_set[i];
     }
 
     return NULL;

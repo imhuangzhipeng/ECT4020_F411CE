@@ -36,13 +36,14 @@ typedef enum
   LED_TOGGLE,
   LED_FLASH,
   LED_PWM,
-}MANAGE_LED_CTRL;
+} manage_led_ctl_cmd_t;
 
-typedef struct led_ctrl_ope_t
+// LED控制消息队列
+struct led_ctrl_queue
 {
-  LED_TYPE led_device;
-  MANAGE_LED_CTRL led_ctrl;
-}LedCtrlOpe;
+  led_type_t led_device;             // 输出设备
+  manage_led_ctl_cmd_t led_ctrl_cmd; // LED操作指令
+};
 
 /* Functions ----------------------------------------------------------------*/
 

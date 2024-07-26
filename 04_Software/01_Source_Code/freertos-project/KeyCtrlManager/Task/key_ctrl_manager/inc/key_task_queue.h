@@ -31,17 +31,18 @@
 
 /* Variables -----------------------------------------------------------------*/
 typedef enum
-{ 
+{
   NONE_EVENT = 0,
   KEY_PRESS_EVENT,
   KEY_LONG_EVENT,
-}MANAGE_KEY_EVENT;
+} manage_key_event_t;
 
-typedef struct key_ctrl_ope_t
+// 按键输出消息队列
+struct key_event_queue
 {
-  KEY_TYPE key_device;
-  MANAGE_KEY_EVENT key_event;
-}KeyCtrlOpe;
+  key_type_t key_device;        // 按键输入
+  manage_key_event_t key_event; // 按键事件
+};
 
 /* Functions ----------------------------------------------------------------*/
 

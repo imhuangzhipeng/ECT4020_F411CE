@@ -36,20 +36,20 @@ typedef enum
   HIGH_LEVEL      // 高电平
 } gpio_pinstate;
 
-typedef struct gpiohandle_t
+typedef struct gpio_interface_t
 {
-  void (*pfgpio_init)(void);                                                             // 初始化函数
+  void (*pfgpio_init)(void);                                                               // 初始化函数
   void (*pfgpio_write_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate);  // 写入引脚状态函数
   int8_t (*pfgpio_read_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate); // 读取引脚状态函数
-  void (*pfgpio_toggle_pin)(void *gpio_port, uint16_t gpio_pin);                         // 翻转引脚状态函数
-} gpiohandle_t, *pgpiohandle_t;
+  void (*pfgpio_toggle_pin)(void *gpio_port, uint16_t gpio_pin);                           // 翻转引脚状态函数
+} gpio_interface_t, *pgpio_interface_t;
 
 /* Functions ----------------------------------------------------------------*/
-int8_t register_gpio_funtion(void (*pfgpio_init)(void),
-                             void (*pfgpio_write_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
-                             int8_t (*pfgpio_read_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
-                             void (*pfgpio_toggle_pin)(void *gpio_port, uint16_t gpio_pin));
+int8_t register_gpio_function(void (*pfgpio_init)(void),
+                              void (*pfgpio_write_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
+                              int8_t (*pfgpio_read_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
+                              void (*pfgpio_toggle_pin)(void *gpio_port, uint16_t gpio_pin));
 
-pgpiohandle_t get_gpio_handle(void);
+pgpio_interface_t get_gpio_handle(void);
 
 #endif /* __MCU_GPIO_DRIVER_H */

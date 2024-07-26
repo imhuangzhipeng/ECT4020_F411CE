@@ -19,20 +19,21 @@ TaskHandle_t keyCtrlTaskHandle;
 QueueHandle_t keyCtrlQueueHandle;
 QueueHandle_t ledCtrlQueueHandle;
 
-void keyCtrlOperate(MANAGE_KEY_EVENT recvFromKeyCtrlQueueVal)
+/* 按键事件处理 */
+void keyCtrlOperate(manage_key_event_t recv_key_event)
 {
     BaseType_t isQueueSend = pdFAIL;
 
-    MANAGE_LED_CTRL ledCtrlCmd = LED_UNDO;
+    manage_led_ctl_cmd_t led_ctrl_cmd = LED_UNDO;
 
-    switch (recvFromKeyCtrlQueueVal)
+    switch (recv_key_event)
     {
     case NONE_EVENT:
     {
-        ledCtrlCmd = LED_UNDO;
+        led_ctrl_cmd = LED_UNDO;
 
         isQueueSend = xQueueSend(ledCtrlQueueHandle,
-                                 (void *)&ledCtrlCmd,
+                                 (void *)&led_ctrl_cmd,
                                  200);
 
         if (isQueueSend != pdPASS)
@@ -43,10 +44,10 @@ void keyCtrlOperate(MANAGE_KEY_EVENT recvFromKeyCtrlQueueVal)
     break;
     case KEY_PRESS_EVENT:
     {
-        ledCtrlCmd = LED_UNDO;
+        led_ctrl_cmd = LED_UNDO;
 
         isQueueSend = xQueueSend(ledCtrlQueueHandle,
-                                 (void *)&ledCtrlCmd,
+                                 (void *)&led_ctrl_cmd,
                                  200);
 
         if (isQueueSend != pdPASS)
@@ -57,10 +58,10 @@ void keyCtrlOperate(MANAGE_KEY_EVENT recvFromKeyCtrlQueueVal)
     break;
     case KEY_LONG_EVENT:
     {
-        ledCtrlCmd = LED_UNDO;
+        led_ctrl_cmd = LED_UNDO;
 
         isQueueSend = xQueueSend(ledCtrlQueueHandle,
-                                 (void *)&ledCtrlCmd,
+                                 (void *)&led_ctrl_cmd,
                                  200);
 
         if (isQueueSend != pdPASS)
@@ -74,17 +75,18 @@ void keyCtrlOperate(MANAGE_KEY_EVENT recvFromKeyCtrlQueueVal)
     }
 }
 
-void keyCtrlManager(void *args)
+/* 按键事件管理任务 */
+void keyCtrlManagerTask(void *args)
 {
     BaseType_t isQueueRecv = pdFAIL;
 
-    MANAGE_KEY_EVENT recvFromKeyCtrlQueueVal = NONE_EVENT;
+    manage_key_event_t recv_key_event = NONE_EVENT;
 
     while (1)
     {
         // receive data from queue
         isQueueRecv = xQueueReceive(keyCtrlQueueHandle,
-                                    (void *)&recvFromKeyCtrlQueueVal,
+                                    (void *)&recv_key_event,
                                     portMAX_DELAY);
         if (isQueueRecv != pdPASS)
         {
@@ -92,17 +94,19 @@ void keyCtrlManager(void *args)
             continue;
         }
 #ifdef DEBUG
-        osPrintf("recvFromKeyCtrlQueueVal = %d \r\n", recvFromKeyCtrlQueueVal);
+        osPrintf("recv_key_event = %d \r\n", recv_key_event);
 #endif
 
-        keyCtrlOperate(recvFromKeyCtrlQueueVal);
+        keyCtrlOperate(recv_key_event);
     }
 }
 
+/* 按键任务管理器初始化 */
 void keyCtrlManagerInit(void)
 {
     BaseType_t isTaskCreate = pdFAIL;
 
+    /* 创建按键消息队列 */
     keyCtrlQueueHandle = xQueueCreate(QUEUE_LENGTH, 1);
 
     if (!keyCtrlQueueHandle)
@@ -111,6 +115,7 @@ void keyCtrlManagerInit(void)
         return;
     }
 
+    /* 创建LED消息队列*/
     ledCtrlQueueHandle = xQueueCreate(QUEUE_LENGTH, 1);
 
     if (!ledCtrlQueueHandle)
@@ -119,8 +124,9 @@ void keyCtrlManagerInit(void)
         return;
     }
 
-    isTaskCreate = xTaskCreate(keyCtrlManager,
-                               "key_ctrl_task",
+    /* 创建按键控制管理任务 */
+    isTaskCreate = xTaskCreate(keyCtrlManagerTask,
+                               "key_ctrl_manager_task",
                                128,
                                NULL,
                                osPriorityNormal,
@@ -128,16 +134,20 @@ void keyCtrlManagerInit(void)
 
     if (isTaskCreate != pdPASS)
     {
-        osPrintf("xTaskCreate key_ctrl_task failed! \r\n");
+        osPrintf("xTaskCreate key_ctrl_manager_task failed! \r\n");
         return;
     }
 
+    /* 创建按键任务 */
     keyTaskInit();
+
+    /* 创建LED任务 */
     ledTaskInit();
 
     return;
 }
 
+/* 释放任务资源 */
 void keyCtrManagerDelete(void)
 {
     vTaskDelete(keyTaskHandle);

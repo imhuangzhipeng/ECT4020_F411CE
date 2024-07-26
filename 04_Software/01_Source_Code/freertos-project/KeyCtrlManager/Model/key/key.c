@@ -5,64 +5,75 @@
 
 #define LONG_TICKS 2000 // 2s
 
+typedef void (*pfkeyCallback)(void); // 绑定按键状态回调的函数指针
+
 typedef struct
 {
-    // 按键消抖时间
-    uint32_t debounce_tick;
-    // 按键按下时间
-    uint32_t key_tick;
-    // 按键事件类型
-    KEY_EVENT key_event;
-    // 当前的按键电平
-    uint8_t now_level;
-    // 按键有效电平
+    // 按键按下时间, 默认值为0
+    uint32_t key_press_tick;
+    // 按键状态类型, 默认NONE_PRESS
+    key_state_t key_state;
+    // 上一次读取的按键电平, 默认值为-1, 表示没有读取按键电平
+    uint8_t last_level;
+    // 按键有效电平, 默认当按键按下时接地, 有效电平的值为0
     uint8_t active_level;
-    // 读取GPIO引脚状态
-    int8_t (*pfgpio_read_pin)(void);
-    // 根据按键类型调用对应回调函数
-    KeyCallBackFun pfkey_callback[KYE_TYPE_NUM];
-    // 获取系统tick数
-    system_tick_t system_tick;
-} key_data_t;
+} key_private_data_t;
 
-/* 按键对象私有属性数据域*/
-static key_data_t __g_key_priv_data_set[KEY_NUM_MAX];
+typedef struct
+{
+    /* 获取当前的按键电平 */
+    int8_t (*getKeyLevel)(void);
+    /* 获取当前时钟滴答 */
+    uint32_t (*getSysTick)(void);
+    /* 按键状态回调函数的函数指针数组 */
+    pfkeyCallback keyCallback[KEY_EVENT_NUM];
+} key_private_func_t;
 
-static int8_t keyInit(struct key_device_t *key_device,
-                      uint8_t active_level,
+typedef struct
+{
+    key_private_data_t data;
+    key_private_func_t func;
+} key_private_t;
+
+/* 按键对象私有成员的数据域*/
+static key_private_t __key_private_set[KEY_TYPE_NUM];
+
+static int8_t keyInit(struct Key_Device *pDev,
+                      uint8_t key_active_level,
                       int8_t (*pfgpio_read_pin)(void),
-                      uint32_t (*get_system_tick)(void))
+                      uint32_t (*pfget_system_tick)(void))
 {
-    key_data_t *data = key_device->private_data;
+    key_private_t *key_private = pDev->priv_data;
 
-    if ((NULL == data) &&
+    if ((NULL == key_private) &&
         (NULL == pfgpio_read_pin) &&
-        (NULL == get_system_tick))
+        (NULL == pfget_system_tick))
     {
         return -1;
     }
 
-    data->active_level = active_level;
-    data->pfgpio_read_pin = pfgpio_read_pin;
-    data->system_tick.get_system_tick = get_system_tick;
+    /* 初始化key_device的私有变量 */
+    key_private->data.key_press_tick = 0;
+    key_private->data.key_state = NONE_PRESS;
+    key_private->data.last_level = -1;
+    key_private->data.active_level = key_active_level;
 
-    data->key_tick = 0;
-    data->debounce_tick = 0;
-    data->key_event = NONE_PRESS;
-    data->now_level = data->pfgpio_read_pin();
+    /* 初始化key_device的私有方法 */
+    key_private->func.getKeyLevel = pfgpio_read_pin;
+    key_private->func.getSysTick = pfget_system_tick;
 
     return 0;
 }
 
-static int8_t keyBindingEvent(struct key_device_t *key_device,
-                              KEY_EVENT key_event,
-                              KeyCallBackFun pfcallbackfun)
+static int8_t keyBindingEvent(struct Key_Device *pDev,
+                              key_state_t state,
+                              void (*pfcallbackfunc)(void))
 {
-    key_data_t *data = key_device->private_data;
+    key_private_t *key_private = pDev->priv_data;
 
-    data->pfkey_callback[key_event] = pfcallbackfun;
+    key_private->func.keyCallback[state] = pfcallbackfunc;
 
-    if (NULL == data->pfkey_callback[key_event])
+    if (NULL == key_private->func.keyCallback[state])
     {
         return -1;
     }
@@ -70,38 +81,39 @@ static int8_t keyBindingEvent(struct key_device_t *key_device,
     return 0;
 }
 
-static int8_t keyScan(struct key_device_t *key_device)
+static int8_t keyScan(struct Key_Device *pDev)
 {
-    key_data_t *data = key_device->private_data;
+    key_private_t *key_private = pDev->priv_data;
 
-    uint8_t read_level = data->pfgpio_read_pin();
+    uint8_t current_key_level = key_private->func.getKeyLevel();
 
     static uint32_t __tick = 0;
 
-    if (read_level != data->now_level)
+    // 当电平发生变化时
+    if (current_key_level != key_private->data.last_level)
     {
         // 记录当前的系统时间
-        __tick = data->system_tick.get_system_tick();
+        __tick = key_private->func.getSysTick();
         // 更新当前的GPIO状态
-        data->now_level = read_level;
+        key_private->data.last_level = current_key_level;
     }
 
-    // 如果tick不为0, 且当前系统时间tick与上一次读取的tick的差值大于debounce_ticks, 开启按键事件判断
-    if ((__tick != 0) && ((data->system_tick.get_system_tick() - __tick) > DEBOUNCE_TICKS))
+    // 如果tick不为0, 且当前系统时间tick与上一次读取的tick的差值大于消抖时间, 开启按键状态判断
+    if ((__tick != 0) && ((key_private->func.getSysTick() - __tick) > DEBOUNCE_TICKS))
     {
-        switch (data->key_event)
+        switch (key_private->data.key_state)
         {
         case NONE_PRESS:
         {
-            // 如果当前读取的level与data的active_level相同, 表示按键按下
-            if (read_level == data->active_level)
+            // 如果当前电平与按键触发电平相同, 表示按键按下
+            if (current_key_level == key_private->data.active_level)
             {
-                // 记录当前系统时间tick
-                data->key_tick = data->system_tick.get_system_tick();
+                // 更新key的按下时间
+                key_private->data.key_press_tick = key_private->func.getSysTick();
                 // 将data的key_event改为PRESS_DOWN
-                data->key_event = PRESS_DOWN;
+                key_private->data.key_state = PRESS_DOWN;
                 // 执行PRESS_DOWN对应的回调函数
-                data->pfkey_callback[PRESS_DOWN]();
+                key_private->func.keyCallback[PRESS_DOWN]();
             }
             else
             {
@@ -111,38 +123,38 @@ static int8_t keyScan(struct key_device_t *key_device)
         break;
         case PRESS_DOWN:
         {
-            // 如果当前读取的level与data的active_level不同, 表示按键抬起
-            if (read_level != data->active_level)
+            // 如果当前电平与按键触发电平不同, 表示按键抬起
+            if (current_key_level != key_private->data.active_level)
             {
                 __tick = 0;
-                data->key_tick = data->system_tick.get_system_tick();
-                data->key_event = PRESS_UP;
-                data->pfkey_callback[PRESS_UP]();
+                key_private->data.key_press_tick = key_private->func.getSysTick();
+                key_private->data.key_state = PRESS_UP;
+                key_private->func.keyCallback[PRESS_UP]();
             }
-            // 如果当前系统时间tick与data的keytick的差值大于LONG_TICKS, 表示按键长按
-            else if (data->system_tick.get_system_tick() - data->key_tick >= LONG_TICKS)
+            // 当前系统时间tick与记录的按键按下时间差值大于长按时间阈值, 表示按键长按
+            else if (key_private->func.getSysTick() - key_private->data.key_press_tick >= LONG_TICKS)
             {
-                data->key_tick = data->system_tick.get_system_tick();
-                data->key_event = PRESS_LONG;
-                data->pfkey_callback[PRESS_LONG]();
+                key_private->data.key_press_tick = key_private->func.getSysTick();
+                key_private->data.key_state = PRESS_LONG;
+                key_private->func.keyCallback[PRESS_LONG]();
             }
         }
         break;
         case PRESS_LONG:
         {
-            // 如果当前读取的level与data的active_level不同, 表示按键抬起
-            if (read_level != data->active_level)
+            // 如果当前电平与按键触发电平不同, 表示按键抬起
+            if (current_key_level != key_private->data.active_level)
             {
                 __tick = 0;
-                data->key_event = PRESS_UP;
-                data->pfkey_callback[PRESS_UP]();
+                key_private->data.key_state = PRESS_UP;
+                key_private->func.keyCallback[PRESS_UP]();
             }
         }
         break;
         case PRESS_UP:
         {
             __tick = 0;
-            data->key_event = NONE_PRESS;
+            key_private->data.key_state = NONE_PRESS;
         }
         break;
         default:
@@ -155,10 +167,10 @@ static int8_t keyScan(struct key_device_t *key_device)
     return 0;
 }
 
-KeyDevice g_user_key = {
-    .key_type = USER_KEY,
+struct Key_Device g_user_key = {
+    .type = USER_KEY,
     .keyInit = keyInit,
     .keyBindingEvent = keyBindingEvent,
     .keyScan = keyScan,
-    .private_data = &__g_key_priv_data_set[USER_KEY],
+    .priv_data = &__key_private_set[USER_KEY],
 };

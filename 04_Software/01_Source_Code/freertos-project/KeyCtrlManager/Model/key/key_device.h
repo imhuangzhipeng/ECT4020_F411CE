@@ -31,8 +31,6 @@
 #define PRESS_LONG_TICK 5
 
 /* Variables -----------------------------------------------------------------*/
-typedef void (*KeyCallBackFun)(void);
-
 typedef enum
 {
     // 无按键
@@ -44,41 +42,36 @@ typedef enum
     // 长按
     PRESS_LONG,
     // 按键事件类型数量
-    KYE_TYPE_NUM,
-} KEY_EVENT;
+    KEY_EVENT_NUM,
+} key_state_t;
 
 typedef enum
 {
     USER_KEY,
-    BOOT_KEY_SW2,
-    RESET_KEY_SW3,
-    KEY_NUM_MAX,
-} KEY_TYPE;
+    // BOOT_KEY_SW2,
+    // RESET_KEY_SW3,
+    KEY_TYPE_NUM,
+} key_type_t;
 
-typedef struct
+struct Key_Device
 {
-    uint32_t (*get_system_tick)(void);
-} system_tick_t;
+    key_type_t type;
 
-typedef struct key_device_t
-{
-    KEY_TYPE key_type;
-
-    int8_t (*keyInit)(struct key_device_t *key_device,
-                      uint8_t active_level,
+    int8_t (*keyInit)(struct Key_Device *pDev,
+                      uint8_t key_active_level,
                       int8_t (*pfgpio_read_pin)(void),
-                      uint32_t (*get_system_tick)(void));
+                      uint32_t (*pfget_system_tick)(void));
 
-    int8_t (*keyBindingEvent)(struct key_device_t *key_device,
-                              KEY_EVENT key_event,
-                              KeyCallBackFun pfcallbackfun);
+    int8_t (*keyBindingEvent)(struct Key_Device *pDev,
+                              key_state_t state,
+                              void (*pfcallbackfunc)(void));
 
-    int8_t (*keyScan)(struct key_device_t *key_device);
+    int8_t (*keyScan)(struct Key_Device *pDev);
 
-    void *private_data;
-} KeyDevice, *pKeyDevice;
+    void *priv_data;
+};
 
 /* Functions ----------------------------------------------------------------*/
-pKeyDevice getKeyDevice(KEY_TYPE key_type);
+struct Key_Device *getKeyDevice(key_type_t type);
 
 #endif /* __KEY_DEVICE_H */

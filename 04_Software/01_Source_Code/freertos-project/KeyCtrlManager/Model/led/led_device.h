@@ -31,30 +31,30 @@
 /* Variables -----------------------------------------------------------------*/
 typedef enum
 {
-    LED_BLUE_D2,
-    LED_RED_D3,
-    LED_TYPE_MAX,
-}LED_TYPE;
+  LED_BLUE_D2,
+  // LED_RED_D3,
+  LED_TYPE_NUM,
+} led_type_t;
 
 typedef enum
 {
-	OFF = 0,
-	ON,
-	Toggle
-} LED_STATE;
+  OFF = 0,
+  ON,
+  Toggle
+} led_state_t;
 
-typedef struct led_device_t
+struct LED_Device
 {
-	LED_TYPE led_type;
-	LED_STATE led_state;
-	int (*ledInit)(struct led_device_t *pled_device);
-	int (*ledControl)(struct led_device_t *pled_device, LED_STATE led_state);
-	void (*setLedBrightness)(struct led_device_t *pled_device, int brightness);
-	void (*setLedColor)(struct led_device_t *pled_device, int color);
-	void *private_data;
-} LedDevice, *pLedDevice;
+  led_type_t type;
+  led_state_t state;
+  int (*ledInit)(struct LED_Device *pDev);
+  int (*ledControl)(struct LED_Device *pDev, led_state_t state);
+  void (*setLedBrightness)(struct LED_Device *pDev, int brightness);
+  void (*setLedColor)(struct LED_Device *pDev, int color);
+  void *priv_data;
+};
 
 /* Functions ----------------------------------------------------------------*/
-pLedDevice getLedDevice(LED_TYPE led_type);
+struct LED_Device *getLedDevice(led_type_t type);
 
 #endif /* __LED_DEVICE_H */

@@ -6,14 +6,12 @@
 #include "key_device.h"
 #include "uart_printf.h"
 
-/**
- * 单元测试函数名命名规范:
- * 功能_条件_期望
- * 
- * 例如:
- * Process_OrderUnshipped_SetShippment()
- * 
- */
+// 测试流程:
+// 1.keyUnitTestTaskInit()创建按键任务keyStatePrint()
+// 2.keyStatePrint()调用getKeyDevice()获取按键句柄
+// 3.keyStatePrint()调用Key_Init_OK()绑定按键触发事件的回调函数
+// 4.keyStatePrint()轮询按键状态
+// 测试结果: 根据按键单击/长按状态printf输出到串口uart1
 
 static int8_t Key_ReadPin_State(void)
 {
@@ -36,34 +34,22 @@ static void Key_LongPressed_Printf(void)
     return;
 }
 
-static void Key_Init_OK(KeyDevice *key_handle)
+static void Key_Init_OK(struct Key_Device **key_handle)
 {
+    (*key_handle)->keyInit(*key_handle, RESET, Key_ReadPin_State, HAL_GetTick);
 
-    key_handle->keyInit(key_handle,
-                        RESET,
-                        Key_ReadPin_State,
-                        HAL_GetTick);
+    (*key_handle)->keyBindingEvent(*key_handle, NONE_PRESS, NULL);
 
-    key_handle->keyBindingEvent(key_handle,
-                                NONE_PRESS,
-                                NULL);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_DOWN, Key_Pressed_Printf);
 
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_DOWN,
-                                Key_Pressed_Printf);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_UP, NULL);
 
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_UP,
-                                NULL);
-
-    key_handle->keyBindingEvent(key_handle,
-                                PRESS_LONG,
-                                Key_LongPressed_Printf);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_LONG, Key_LongPressed_Printf);
 }
 
 void keyStatePrint(void *arg)
 {
-    KeyDevice *user_key_handle;
+    struct Key_Device *user_key_handle;
 
     user_key_handle = getKeyDevice(USER_KEY);
 
@@ -73,7 +59,7 @@ void keyStatePrint(void *arg)
         return;
     }
 
-    Key_Init_OK(user_key_handle);
+    Key_Init_OK(&user_key_handle);
 
     while (1)
     {
