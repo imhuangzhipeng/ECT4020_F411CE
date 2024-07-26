@@ -7,15 +7,30 @@
 #include "mcu_gpio_driver.h"
 #include "uart_printf.h"
 
+// #define DEBUG
+
 extern QueueHandle_t ledCtrlQueueHandle;
 
 TaskHandle_t ledTaskHandle;
 
 static struct LED_Device *__led_b1_handle;
 
+void ledOff(void)
+{
+    __led_b1_handle->ledControl(__led_b1_handle, OFF);
+}
+
+void ledOn(void)
+{
+    __led_b1_handle->ledControl(__led_b1_handle, ON);
+}
+
 void ledToggle(void)
 {
     __led_b1_handle->ledControl(__led_b1_handle, Toggle);
+#ifdef DEBUG
+    osPrintf("LED_BLUE_D2 Toggle! \r\n");
+#endif
 }
 
 void ledFlash(void)
@@ -25,15 +40,16 @@ void ledFlash(void)
     for (i = 0; i < 6; i++)
     {
         ledToggle();
+        vTaskDelay(200);
     }
 }
 
 /* 初始化LED设备 */
-void ledDeviceCreate(struct LED_Device *led_handle)
+void ledDeviceCreate(struct LED_Device **led_handle)
 {
-    led_handle = getLedDevice(LED_BLUE_D2);
+    *led_handle = getLedDevice(LED_BLUE_D2);
 
-    if (NULL == led_handle)
+    if (NULL == *led_handle)
     {
         osPrintf("getLedDevice() failed! \r\n");
         return;
@@ -44,7 +60,7 @@ void ledDeviceCreate(struct LED_Device *led_handle)
                            HAL_GPIO_ReadPin,
                            HAL_GPIO_TogglePin);
 
-    led_handle->ledInit(led_handle);
+    (*led_handle)->ledInit(*led_handle);
 }
 
 /* 接收按键管理任务的消息并根据消息队列的指令执行LED控制函数 */
@@ -52,7 +68,7 @@ void ledTaskFunction(void *args)
 {
     BaseType_t isQueueRecv = pdFAIL;
 
-    manage_led_ctl_cmd_t led_ctl_cmd = LED_UNDO;
+    manage_led_ctl_cmd_t led_ctl_cmd;
 
     while (1)
     {
@@ -90,7 +106,7 @@ void ledTaskInit(void)
 {
     BaseType_t isTaskCreate = pdFAIL;
 
-    ledDeviceCreate(__led_b1_handle);
+    ledDeviceCreate(&__led_b1_handle);
 
     isTaskCreate = xTaskCreate(ledTaskFunction,
                                "led_task",

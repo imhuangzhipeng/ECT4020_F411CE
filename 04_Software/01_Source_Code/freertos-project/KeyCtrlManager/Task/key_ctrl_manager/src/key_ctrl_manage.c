@@ -7,6 +7,8 @@
 #include "key_task_queue.h"
 #include "led_task_queue.h"
 
+// #define DEBUG
+
 #define QUEUE_LENGTH 10
 
 extern TaskHandle_t keyTaskHandle;
@@ -31,20 +33,11 @@ void keyCtrlOperate(manage_key_event_t recv_key_event)
     case NONE_EVENT:
     {
         led_ctrl_cmd = LED_UNDO;
-
-        isQueueSend = xQueueSend(ledCtrlQueueHandle,
-                                 (void *)&led_ctrl_cmd,
-                                 200);
-
-        if (isQueueSend != pdPASS)
-        {
-            osPrintf("xQueueSend failed! \r\n");
-        }
     }
     break;
     case KEY_PRESS_EVENT:
     {
-        led_ctrl_cmd = LED_UNDO;
+        led_ctrl_cmd = LED_TOGGLE;
 
         isQueueSend = xQueueSend(ledCtrlQueueHandle,
                                  (void *)&led_ctrl_cmd,
@@ -54,11 +47,14 @@ void keyCtrlOperate(manage_key_event_t recv_key_event)
         {
             osPrintf("xQueueSend failed! \r\n");
         }
+#ifdef DEBUG
+        osPrintf("Send led ctrl cmd: %d.\r\n", led_ctrl_cmd);
+#endif
     }
     break;
     case KEY_LONG_EVENT:
     {
-        led_ctrl_cmd = LED_UNDO;
+        led_ctrl_cmd = LED_FLASH;
 
         isQueueSend = xQueueSend(ledCtrlQueueHandle,
                                  (void *)&led_ctrl_cmd,
@@ -68,6 +64,9 @@ void keyCtrlOperate(manage_key_event_t recv_key_event)
         {
             osPrintf("xQueueSend failed! \r\n");
         }
+#ifdef DEBUG
+        osPrintf("Send led ctrl cmd:%d.\r\n", led_ctrl_cmd);
+#endif
     }
     break;
     default:
@@ -94,7 +93,7 @@ void keyCtrlManagerTask(void *args)
             continue;
         }
 #ifdef DEBUG
-        osPrintf("recv_key_event = %d \r\n", recv_key_event);
+        osPrintf("Recv key event: %d.\r\n", recv_key_event);
 #endif
 
         keyCtrlOperate(recv_key_event);

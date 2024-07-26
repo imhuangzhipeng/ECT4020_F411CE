@@ -6,7 +6,7 @@
 #include "key_task_queue.h"
 #include "uart_printf.h"
 
-#define DEBUG
+// #define DEBUG
 
 extern QueueHandle_t keyCtrlQueueHandle;
 
@@ -24,14 +24,45 @@ int8_t readUserKeyPin(void)
     return (int8_t)pinState;
 }
 
-void userKeyPressed(void)
+void userKeyPressedDown(void)
 {
     __key_event_val = KEY_PRESS_EVENT;
+
+#ifdef DEBUG
+    osPrintf("Key state change: %d.\r\n", __key_event_val);
+#endif
+}
+
+/* 按键抬起发送消息队列 */
+void userKeyPressedUp(void)
+{
+    BaseType_t isQueueSend = xQueueSend(keyCtrlQueueHandle,
+                                        (void *)&__key_event_val,
+                                        200);
+
+    if (isQueueSend != pdPASS)
+    {
+        osPrintf("xQueueSend failed! \r\n");
+    }
+
+#ifdef DEBUG
+    osPrintf("Send Short Pressed data: %d.\r\n", __key_event_val);
+#endif
+
+    __key_event_val = NONE_EVENT;
+
+#ifdef DEBUG
+    osPrintf("Reset queue data: %d.\r\n", __key_event_val);
+#endif
 }
 
 void userKeyLongPressed(void)
 {
     __key_event_val = KEY_LONG_EVENT;
+
+#ifdef DEBUG
+    osPrintf("Key state change: %d.\r\n", __key_event_val);
+#endif
 }
 
 /* 初始化按键设备 */
@@ -39,7 +70,7 @@ void keyDeviceCreate(struct Key_Device **key_handle)
 {
     *key_handle = getKeyDevice(USER_KEY);
 
-    if (NULL == key_handle)
+    if (NULL == *key_handle)
     {
         osPrintf("getKeyDevice() failed! \r\n");
         return;
@@ -49,20 +80,19 @@ void keyDeviceCreate(struct Key_Device **key_handle)
 
     (*key_handle)->keyBindingEvent(*key_handle, NONE_PRESS, NULL);
 
-    (*key_handle)->keyBindingEvent(*key_handle, PRESS_DOWN, userKeyPressed);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_DOWN, userKeyPressedDown);
 
-    (*key_handle)->keyBindingEvent(*key_handle, PRESS_UP, NULL);
+    (*key_handle)->keyBindingEvent(*key_handle, PRESS_UP, userKeyPressedUp);
 
     (*key_handle)->keyBindingEvent(*key_handle, PRESS_LONG, userKeyLongPressed);
 }
 
-/* 扫描按键状态并发送到消息队列 */
+/* 扫描按键状态 */
 void keyTaskFunction(void *args)
 {
-    BaseType_t isQueueSend = pdFAIL;
-
     while (1)
     {
+
         // 阻塞等待锁
         //  while (keyTaskPauseFlag)
         //  {
@@ -73,22 +103,6 @@ void keyTaskFunction(void *args)
 
         // 扫描按键是否按下, 获取按键事件
         __user_key_handle->keyScan(__user_key_handle);
-
-        isQueueSend = xQueueSend(keyCtrlQueueHandle,
-                                 (void *)&__key_event_val,
-                                 200);
-#ifdef DEBUG
-        osPrintf("__key_event_val = %d \r\n", __key_event_val);
-#endif
-
-        if (isQueueSend != pdPASS)
-        {
-            osPrintf("xQueueSend failed! \r\n");
-        }
-        else
-        {
-            vTaskDelay(100);
-        }
     }
 }
 
@@ -111,4 +125,6 @@ void keyTaskInit(void)
         osPrintf("xTaskCreate key_task failed! \r\n");
         return;
     }
+
+    __key_event_val = NONE_EVENT;
 }
