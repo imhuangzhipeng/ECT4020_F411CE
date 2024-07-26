@@ -13,6 +13,8 @@
 // 4.keyStatePrint()轮询按键状态
 // 测试结果: 根据按键单击/长按状态printf输出到串口uart1
 
+static struct Key_Device *user_key_handle;
+
 static int8_t Key_ReadPin_State(void)
 {
     GPIO_PinState pinState;
@@ -22,9 +24,15 @@ static int8_t Key_ReadPin_State(void)
     return (int8_t)pinState;
 }
 
-static void Key_Pressed_Printf(void)
+static void Key_PressedDown_Printf(void)
 {
-    osPrintf("User Key Pressed! \r\n");
+    osPrintf("User Key Pressed Down! \r\n");
+    return;
+}
+
+static void Key_PressedUP_Printf(void)
+{
+    osPrintf("User Key Pressed UP! \r\n");
     return;
 }
 
@@ -34,23 +42,8 @@ static void Key_LongPressed_Printf(void)
     return;
 }
 
-static void Key_Init_OK(struct Key_Device **key_handle)
+static void Key_Init_OK(void)
 {
-    (*key_handle)->keyInit(*key_handle, RESET, Key_ReadPin_State, HAL_GetTick);
-
-    (*key_handle)->keyBindingEvent(*key_handle, NONE_PRESS, NULL);
-
-    (*key_handle)->keyBindingEvent(*key_handle, PRESS_DOWN, Key_Pressed_Printf);
-
-    (*key_handle)->keyBindingEvent(*key_handle, PRESS_UP, NULL);
-
-    (*key_handle)->keyBindingEvent(*key_handle, PRESS_LONG, Key_LongPressed_Printf);
-}
-
-void keyStatePrint(void *arg)
-{
-    struct Key_Device *user_key_handle;
-
     user_key_handle = getKeyDevice(USER_KEY);
 
     if (NULL == user_key_handle)
@@ -59,8 +52,19 @@ void keyStatePrint(void *arg)
         return;
     }
 
-    Key_Init_OK(&user_key_handle);
+    user_key_handle->keyInit(user_key_handle, RESET, Key_ReadPin_State, HAL_GetTick);
 
+    user_key_handle->keyBindingEvent(user_key_handle, NONE_PRESS, NULL);
+
+    user_key_handle->keyBindingEvent(user_key_handle, PRESS_DOWN, Key_PressedDown_Printf);
+
+    user_key_handle->keyBindingEvent(user_key_handle, PRESS_UP, Key_PressedUP_Printf);
+
+    user_key_handle->keyBindingEvent(user_key_handle, PRESS_LONG, Key_LongPressed_Printf);
+}
+
+void keyStatePrint(void *arg)
+{
     while (1)
     {
         user_key_handle->keyScan(user_key_handle);
@@ -85,4 +89,6 @@ void keyUnitTestTaskInit(void)
         osPrintf("xTaskCreate unit_test_key_task failed! \r\n");
         return;
     }
+
+    Key_Init_OK();
 }
