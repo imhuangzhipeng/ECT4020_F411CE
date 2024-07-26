@@ -17,6 +17,9 @@
 *.hex
 *.bin
 *.Bak
+*.ini
+!debug.ini
+*.scvd
 
 #Keil Project screen layout file
 *.uvguix.*
@@ -25,6 +28,10 @@
 #JLINK file
 JLinkLog.txt
 *.dbgconf
+
+#IDE
+.vscode
+.idea
 
 #ref WeAct F411CEU6 Boards 
 04_Software/00_Ref/WeActStudio.MiniSTM32F4x1-master/
