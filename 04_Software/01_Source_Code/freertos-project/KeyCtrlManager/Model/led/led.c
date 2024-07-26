@@ -2,6 +2,10 @@
 #include "mcu_gpio_driver.h"
 #include "gpio.h"
 
+/* 根据硬件电路重新实现LED亮灭宏定义 */
+#define LED_ON_LEVEL LOW_LEVEL
+#define LED_OFF_LEVEL HIGH_LEVEL
+
 /* 定义LED对象私有属性 */
 struct led_private_data_t
 {
@@ -42,11 +46,11 @@ int ledControl(struct LED_Device *pDev, led_state_t state)
     switch (state)
     {
     case ON:
-        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, HIGH_LEVEL);
+        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, LED_ON_LEVEL);
         pDev->state = ON;
         return 1;
     case OFF:
-        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, LOW_LEVEL);
+        data->gpio->pfgpio_write_pin(data->GPIO_PORT, data->GPIO_PIN, LED_OFF_LEVEL);
         pDev->state = OFF;
         return 0;
     case Toggle:
