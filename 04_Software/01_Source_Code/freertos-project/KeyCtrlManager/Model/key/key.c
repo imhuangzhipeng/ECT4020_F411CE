@@ -5,17 +5,19 @@
 
 #define LONG_TICKS 2000 // 2s
 
+#define RESET_DATA 0
+
 typedef void (*pfkeyCallback)(void); // 绑定按键状态回调的函数指针
 
 typedef struct
 {
-    // 按键按下时间, 默认值为0
+    /* 按键按下时间, 默认值为RESET_DATA */
     uint32_t key_press_tick;
-    // 按键状态类型, 默认NONE_PRESS
+    /* 按键状态类型, 默认NONE_PRESS */
     key_state_t key_state;
-    // 上一次读取的按键电平, 默认值为-1, 表示没有读取按键电平
+    /* 上一次读取的按键电平, 默认值为RESET_DATA, 表示没有读取按键电平 */
     uint8_t last_level;
-    // 按键有效电平, 默认当按键按下时接地, 有效电平的值为0
+    /* 按键按下时电平, 由初始化函数外部传入参数赋值 */
     uint8_t active_level;
 } key_private_data_t;
 
@@ -26,7 +28,7 @@ typedef struct
     /* 获取当前时钟滴答 */
     uint32_t (*getSysTick)(void);
     /* 按键状态回调函数的函数指针数组 */
-    pfkeyCallback keyCallback[KEY_EVENT_NUM];
+    pfkeyCallback keyCallback[KEY_STATE_NUM];
 } key_private_func_t;
 
 typedef struct
@@ -53,9 +55,9 @@ static int8_t keyInit(struct Key_Device *pDev,
     }
 
     /* 初始化key_device的私有变量 */
-    key_private->data.key_press_tick = 0;
+    key_private->data.key_press_tick = RESET_DATA;
     key_private->data.key_state = NONE_PRESS;
-    key_private->data.last_level = -1;
+    key_private->data.last_level = RESET_DATA;
     key_private->data.active_level = key_active_level;
 
     /* 初始化key_device的私有方法 */

@@ -33,6 +33,14 @@
 /* Variables -----------------------------------------------------------------*/
 typedef enum
 {
+    USER_KEY,
+    // BOOT_KEY_SW2,
+    // RESET_KEY_SW3,
+    KEY_TYPE_NUM,
+} key_type_t;
+
+typedef enum
+{
     // 无按键
     NONE_PRESS,
     // 按下
@@ -41,17 +49,9 @@ typedef enum
     PRESS_UP,
     // 长按
     PRESS_LONG,
-    // 按键事件类型数量
-    KEY_EVENT_NUM,
+    // 按键状态
+    KEY_STATE_NUM,
 } key_state_t;
-
-typedef enum
-{
-    USER_KEY,
-    // BOOT_KEY_SW2,
-    // RESET_KEY_SW3,
-    KEY_TYPE_NUM,
-} key_type_t;
 
 struct Key_Device
 {
