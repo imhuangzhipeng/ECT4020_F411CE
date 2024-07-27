@@ -11,7 +11,7 @@ static gpio_interface_t __g_gpio_handle = {
 // 定义一个函数，用于注册gpio功能
 int8_t register_gpio_function(void (*pfgpio_init)(void),
                               void (*pfgpio_write_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
-                              int8_t (*pfgpio_read_pin)(void *gpio_port, uint16_t gpio_pin, gpio_pinstate pinstate),
+                              int8_t (*pfgpio_read_pin)(void *gpio_port, uint16_t gpio_pin),
                               void (*pfgpio_toggle_pin)(void *gpio_port, uint16_t gpio_pin))
 {
     // 将参数赋值给__g_gpio_handle结构体
