@@ -14,7 +14,7 @@ static TaskHandle_t ledTaskHandle;
 static void ledTask(void *arg)
 {
     led_interface.pfinit();
-	
+
     while (1)
     {
         led_interface.pftask();
@@ -24,7 +24,7 @@ static void ledTask(void *arg)
 static void keyTask(void *arg)
 {
     key_interface.pfinit();
-	
+
     while (1)
     {
         key_interface.pftask();

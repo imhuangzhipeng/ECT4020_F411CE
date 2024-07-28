@@ -14,7 +14,10 @@ typedef struct
     key_state_t key_state;
 } key_event_t;
 
+/* 按键输入事件句柄 */
 QueueHandle_t g_key_event_queue_handle = NULL;
+
+/* 按键输出事件句柄 */
 QueueHandle_t g_key_result_queue_handle = NULL;
 
 void keyInit(void)
@@ -120,6 +123,7 @@ void sendKeyEvent(key_state_t key_state)
     }
 }
 
+/* GPIO 上升沿/下降沿中断触发回调 */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin))

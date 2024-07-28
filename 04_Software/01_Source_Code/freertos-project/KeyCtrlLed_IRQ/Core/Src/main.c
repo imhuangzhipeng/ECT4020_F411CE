@@ -20,6 +20,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "rtc.h"
+#include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -54,6 +55,7 @@
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+extern void led_timeout_callback(void);
 
 /* USER CODE END PFP */
 
@@ -93,6 +95,7 @@ int main(void)
   MX_GPIO_Init();
   MX_RTC_Init();
   MX_USART1_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -186,7 +189,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
-
+  if (htim->Instance == TIM4)
+  {
+    led_timeout_callback();
+  }
   /* USER CODE END Callback 1 */
 }
 

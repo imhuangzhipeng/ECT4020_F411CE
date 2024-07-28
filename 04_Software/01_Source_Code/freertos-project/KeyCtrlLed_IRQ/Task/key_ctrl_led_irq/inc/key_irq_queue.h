@@ -48,7 +48,7 @@ typedef struct key_interface_t
 {
     void (*pfinit)(void);
     void (*pftask)(void);
-}KeyInterface;
+} KeyInterface;
 
 /* Functions ----------------------------------------------------------------*/
 
