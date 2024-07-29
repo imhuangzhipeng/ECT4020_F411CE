@@ -158,7 +158,7 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>waitflag</ItemText>
+          <ItemText>pkey_event</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

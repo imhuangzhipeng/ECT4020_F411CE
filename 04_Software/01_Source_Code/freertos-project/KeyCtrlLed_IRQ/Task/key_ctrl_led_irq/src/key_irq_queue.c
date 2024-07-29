@@ -5,8 +5,8 @@
 #include "key_irq_queue.h"
 #include "uart_printf.h"
 
-#define KEY_RESULT_QUEUE_SIZE 10
 #define KEY_EVENT_QUEUE_SIZE 10
+#define KEY_RESULT_QUEUE_SIZE 10
 
 typedef struct
 {
@@ -22,8 +22,7 @@ QueueHandle_t g_key_result_queue_handle = NULL;
 
 void keyInit(void)
 {
-
-    g_key_event_queue_handle = xQueueCreate(KEY_EVENT_QUEUE_SIZE, sizeof(key_event_t));
+    g_key_event_queue_handle = xQueueCreate(KEY_EVENT_QUEUE_SIZE, sizeof(key_event_t *));
     g_key_result_queue_handle = xQueueCreate(KEY_RESULT_QUEUE_SIZE, sizeof(key_result_t));
 
     if (!g_key_event_queue_handle || !g_key_result_queue_handle)
@@ -39,27 +38,28 @@ void keyTask(void)
 
     key_state_t key_state = KEY_NULL;
     key_result_t key_result = KEY_NO_PRESS;
-    key_event_t key_event = {0};
+    key_event_t *pkey_event = NULL;
 
     static uint32_t __press_time = 0;
 
     // 阻塞等待, 接收上升沿/下降沿中断消息
-    isQueueRetFail = xQueueReceive(g_key_event_queue_handle, &key_event, portMAX_DELAY);
+    isQueueRetFail = xQueueReceive(g_key_event_queue_handle, &pkey_event, portMAX_DELAY);
 
     if (isQueueRetFail != pdPASS)
     {
         osPrintf("keyTask() xQueueReceive failed! \r\n");
     }
 
-    key_state = key_event.key_state;
+    key_state = pkey_event->key_state;
 
     switch (key_state)
     {
-    case KEY_PRESS:
-        __press_time = key_event.triggle_tick;
+    case KEY_PRESS: // 按键按下
+        __press_time = pkey_event->triggle_tick;
         break;
-    case KEY_RELEASE:
-        __press_time = key_event.triggle_tick - __press_time;
+
+    case KEY_RELEASE: // 按键抬起
+        __press_time = pkey_event->triggle_tick - __press_time;
         if (__press_time < 50)
         {
             // 抖动
@@ -88,6 +88,7 @@ void keyTask(void)
             }
         }
         break;
+
     default:
         break;
     }
@@ -95,12 +96,16 @@ void keyTask(void)
 
 void sendKeyEvent(key_state_t key_state)
 {
-    static key_event_t __key_event;
-
     BaseType_t isQueueSend = pdFAIL;
 
     // 检查是否有更高优先级的任务被唤醒
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    /* 按键输入事件消息结构体 */
+    static key_event_t __key_event;
+
+    // 按键输入事件消息体指针
+    key_event_t *pkey_event = &__key_event;
 
     if (key_state != __key_event.key_state)
     {
@@ -109,7 +114,7 @@ void sendKeyEvent(key_state_t key_state)
         __key_event.triggle_tick = HAL_GetTick();
 
         // EXIT0中断发送上升沿/下降沿中断消息
-        isQueueSend = xQueueSendFromISR(g_key_event_queue_handle, &__key_event, &xHigherPriorityTaskWoken);
+        isQueueSend = xQueueSendFromISR(g_key_event_queue_handle, &pkey_event, &xHigherPriorityTaskWoken);
         if (isQueueSend != pdPASS)
         {
             osPrintf("keyTask() xQueueSendToBack failed! \r\n");
