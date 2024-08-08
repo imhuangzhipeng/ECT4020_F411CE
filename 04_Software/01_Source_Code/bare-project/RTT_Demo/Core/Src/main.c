@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "SEGGER_RTT.h"
+#include "elog.h"
 
 /* USER CODE END Includes */
 
@@ -58,7 +59,16 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+void test_elog(void) {
+    /* test log output for all level */
+    log_a("Hello EasyLogger!");
+    log_e("Hello EasyLogger!");
+    log_w("Hello EasyLogger!");
+    log_i("Hello EasyLogger!");
+    log_d("Hello EasyLogger!");
+    log_v("Hello EasyLogger!");
+//    elog_raw("Hello EasyLogger!");
+}
 /* USER CODE END 0 */
 
 /**
@@ -94,16 +104,36 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  /************Use RTT****************/
+  //SEGGER_RTT_Init();
 
+  /************Use Easylog************/
+  /* close printf buffer */
+  setbuf(stdout, NULL);
+  /* initialize EasyLogger */
+  elog_init();
+  /* set EasyLogger log format */
+  elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_ALL);
+  elog_set_fmt(ELOG_LVL_ERROR, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  elog_set_fmt(ELOG_LVL_WARN, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  elog_set_fmt(ELOG_LVL_INFO, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  elog_set_fmt(ELOG_LVL_DEBUG, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+  elog_set_fmt(ELOG_LVL_VERBOSE, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+  /* start EasyLogger */
+  elog_start();
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  SEGGER_RTT_Init();
-
   while (1)
   {
-		SEGGER_RTT_printf(0, "Hello world!\r\n");
+    /* rtt printf */
+    // SEGGER_RTT_printf(0, "Hello world!\r\n");
+    // HAL_Delay(1000);
+
+    /* test easylogger output */
+    test_elog();
     HAL_Delay(1000);
 
     /* USER CODE END WHILE */
