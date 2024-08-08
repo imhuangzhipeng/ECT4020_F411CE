@@ -268,14 +268,17 @@ void adc_dma_transmit_init(void)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
     if (hadc == &hadc1)
     {
         /* DMA转换完成, 释放二值信号量通知任务A */
-        BaseType_t ret = xSemaphoreGive(adcTransmitSemphr);
-        if (ret != pdTRUE)
+        xSemaphoreGiveFromISR(adcTransmitSemphr, &xHigherPriorityTaskWoken);
+
+        // 如果有更高优先级的任务被唤醒，则调用 portYIELD() 或 portEND_SWITCHING_ISR()
+        if (xHigherPriorityTaskWoken == pdTRUE)
         {
-            LOG("ADC semaphore give fail!\r\n");
-            return;
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         }
     }
 }
