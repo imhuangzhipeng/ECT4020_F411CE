@@ -45,69 +45,52 @@ static SemaphoreHandle_t adcTransmitSemphr;
 static TaskHandle_t sendMailbox;
 static TaskHandle_t recvMailbox;
 
-uint8_t *create_dma_buffer(size_t size)
-{
-    uint8_t *buffer = NULL;
-
-    size_t freeHeapMemSize = 0;
-
-    /* 查询剩余内存 */
-    freeHeapMemSize = xPortGetFreeHeapSize();
-    if (freeHeapMemSize < size)
-    {
-        return NULL;
-    }
-
-    /* 创建DMA缓冲区 */
-    buffer = pvPortMalloc(size);
-    if (!buffer)
-    {
-        return NULL;
-    }
-
-    return buffer;
-}
-
-void dma_buffer_init(uint8_t *buffer, size_t size)
-{
-    size_t i = 0;
-
-    /* 清空缓冲区 */
-    for (i = 0; i < size; i++)
-    {
-        buffer[i] = 0xff;
-    }
-
-    return;
-}
-
 /**
- * @brief 创建2个DMA缓冲区
+ * @brief 创建DMA双缓冲区
  * @param size 单个缓冲区的大小
- * @retval uint8_t **pbuffer_arr 记录双缓冲区地址的指针数组的指针
+ * @retval NULL - 缓冲区内存分配失败
+ * @retval pbuffer_arr - 双缓冲区数组指针
  */
 uint8_t **create_dma_double_buffer(size_t size)
 {
-    /* DMA双缓冲区数组 */
-    uint8_t *dma_double_buffer[2] = {NULL, NULL};
-    uint8_t **pbuffer_arr = dma_double_buffer;
+    size_t i, j = 0;
+    size_t freeHeapMemSize = 0;
+    static uint8_t *pbuffer_arr[2] = {NULL, NULL};
 
-    /* 创建DMA双缓冲区 */
-    for (int i = 0; i < 2; i++)
+    for (i = 0; i < 2; i++)
     {
-        dma_double_buffer[i] = create_dma_buffer(size);
-        if (!dma_double_buffer[i])
+        /* 查看剩余内存空间是否足够 */
+        freeHeapMemSize = xPortGetFreeHeapSize();
+        if (freeHeapMemSize < size)
         {
+            LOG("Heap space insufficient.\r\n");
             return NULL;
         }
 
-        dma_buffer_init(dma_double_buffer[i], size);
+        /* 创建DMA缓冲区 */
+        pbuffer_arr[i] = pvPortMalloc(size);
+        if (!pbuffer_arr[i])
+        {
+            LOG("Create dma buffer fail.\r\n");
+            return NULL;
+        }
+
+        /* 清空缓冲区 */
+        for (j = 0; j < size; j++)
+        {
+            pbuffer_arr[i][j] = 0xff;
+        }
     }
 
     return pbuffer_arr;
 }
 
-void adc_send_mailbox(void *args)
+/**
+ * @description: 任务A: 切换DMA转换缓冲区，通知任务B读取缓冲区数据
+ * @param {void} *args
+ * @return {*}
+ */
+void adc_process_dma_transfer(void *args)
 {
     BaseType_t ret = pdFAIL;
     adc_dma_mailbox_msg_t *padc_dma_mailbox_msg = NULL;
@@ -117,7 +100,16 @@ void adc_send_mailbox(void *args)
         // 1. 阻塞等待DMA事件完成的信号量
         xSemaphoreTake(adcTransmitSemphr, portMAX_DELAY);
 
-        // 2. 重新启动DMA, DMA指向新的缓冲区
+        // 2. 切换ADC转换缓冲区指向
+
+        /* 邮件计数值+1 */
+        padc_dma_mailbox_msg->msg_num++;
+
+        /* DMA指向新的缓冲区 */
+        uint8_t index = (adc_dma_mailbox_msg.msg_num) % 2;
+        adc_dma_mailbox_msg.buffer = dma_double_buffer[index];
+
+        /* 重新启动DMA */
         HAL_ADC_Stop_DMA(&hadc1);
         HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_mailbox_msg.buffer, ADC_BUFFER_SIZE);
 
@@ -126,14 +118,11 @@ void adc_send_mailbox(void *args)
         /* 获取互斥锁 */
         xSemaphoreTake(dmaBufMtx, portMAX_DELAY);
 
-        /* 邮件计数值+1 */
-        padc_dma_mailbox_msg->msg_num++;
-
         /* 覆写邮箱数据 */
         ret = xQueueOverwrite(adc_dma_mailbox, &padc_dma_mailbox_msg);
         if (ret != pdPASS)
         {
-            LOG("xQueuePeek mailbox failed!\r\n");
+            LOG("Overwrite mailbox fail!\r\n");
             continue;
         }
 
@@ -141,7 +130,7 @@ void adc_send_mailbox(void *args)
         ret = xSemaphoreGive(dmaBufMtx);
         if (ret != pdTRUE)
         {
-            LOG("Semaphore give failed!\r\n");
+            LOG("DMA buffer mutex give fail!\r\n");
             break;
         }
     }
@@ -150,7 +139,12 @@ void adc_send_mailbox(void *args)
     vTaskDelete(NULL);
 }
 
-void adc_recv_mailbox(void *args)
+/**
+ * @description: 任务B: 读取缓冲区数据，计算ADC电压值并打印
+ * @param {void} *args
+ * @return {*}
+ */
+void adc_convert(void *args)
 {
     BaseType_t ret = pdFAIL;
     adc_dma_mailbox_msg_t *padc_dma_mailbox_msg = NULL;
@@ -171,9 +165,9 @@ void adc_recv_mailbox(void *args)
         ret = xQueueReceive(adc_dma_mailbox,
                             (void *)&padc_dma_mailbox_msg,
                             0);
-        if (ret != pdPASS)
+        if (ret != pdTRUE)
         {
-            LOG("xQueueReceive failed! \r\n");
+            LOG("Receive mailbox fail! \r\n");
             break;
         }
 
@@ -181,7 +175,7 @@ void adc_recv_mailbox(void *args)
         ret = xSemaphoreGive(dmaBufMtx);
         if (ret != pdTRUE)
         {
-            LOG("Semaphore give failed!\r\n");
+            LOG("DMA buffer mutex give fail!\r\n");
             break;
         }
 
@@ -190,19 +184,28 @@ void adc_recv_mailbox(void *args)
         vol = (float)((adc_value * 3.3f * VREFINT_CAL) / VREFINT_DATA * FULL_SCALE); // ADC转换值
 
         // 3. 打印ADC转换值
-        LOG("adc value: %d, voltage: %1.3f V\r\n",
-              adc_value,
-              vol);
+        LOG("ADC value: %d, voltage: %1.3f V\r\n",
+            adc_value,
+            vol);
     }
 
     /* 发生严重错误，删除任务，关闭子模块功能 */
     vTaskDelete(NULL);
 }
 
+/**
+ * @description:
+ * @return {*}
+ */
 void adc_dma_transmit_init(void)
 {
     /* 创建DMA双缓冲区 */
     dma_double_buffer = create_dma_double_buffer(ADC_BUFFER_SIZE);
+    if (!dma_double_buffer)
+    {
+        LOG("Create dma double buffer fail.\r\n");
+        return;
+    }
 
     /* 初始化邮箱数据 */
     adc_dma_mailbox_msg.buffer = dma_double_buffer[0]; // 默认Buffer1为ADC转换缓冲区
@@ -213,7 +216,7 @@ void adc_dma_transmit_init(void)
     adcTransmitSemphr = xSemaphoreCreateBinary();
     if (!adcTransmitSemphr)
     {
-        LOG("failed to create adcTransmitSemphr");
+        LOG("Fail to create ADC semaphore.\r\n");
         return;
     }
 
@@ -221,7 +224,7 @@ void adc_dma_transmit_init(void)
     dmaBufMtx = xSemaphoreCreateMutex();
     if (!dmaBufMtx)
     {
-        LOG("failed to create dmaBufMtx");
+        LOG("Fail to create DMA buffer mutex.\r\n");
         return;
     }
 
@@ -229,30 +232,31 @@ void adc_dma_transmit_init(void)
     adc_dma_mailbox = xQueueCreate(1, sizeof(adc_dma_mailbox_msg_t *));
     if (!adc_dma_mailbox)
     {
-        LOG("xQueueCreate failed! \r\n");
+        LOG("Create mailbox fail! \r\n");
         return;
     }
 
-    /* 创建邮箱任务 */
-    if (pdPASS != xTaskCreate(adc_send_mailbox,
-                              "adc_taskA",
+    /* 创建任务 */
+    if (pdPASS != xTaskCreate(adc_process_dma_transfer,
+                              "adc_process_dma_transfer",
                               128,
                               NULL,
                               osPriorityNormal2,
                               &sendMailbox) ||
-        pdPASS != xTaskCreate(adc_recv_mailbox,
-                              "adc_taskB",
+        pdPASS != xTaskCreate(adc_convert,
+                              "adc_convert",
                               128,
                               NULL,
                               osPriorityNormal2,
                               &recvMailbox))
     {
-        LOG("xTaskCreate adc task failed! \r\n");
+        LOG("Create ADC task fail! \r\n");
         return;
     }
 
     /* 开启ADC转换 */
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_mailbox_msg.buffer, ADC_BUFFER_SIZE);
+
     return;
 }
 
@@ -266,15 +270,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     if (hadc == &hadc1)
     {
-        /* 切换ADC转换缓冲区指向 */
-        uint8_t index = (adc_dma_mailbox_msg.msg_num) % 2;
-        adc_dma_mailbox_msg.buffer = dma_double_buffer[index];
-
         /* DMA转换完成, 释放二值信号量通知任务A */
         BaseType_t ret = xSemaphoreGive(adcTransmitSemphr);
-        if (ret != pdPASS)
+        if (ret != pdTRUE)
         {
-            LOG("Semaphore give failed!\r\n");
+            LOG("ADC semaphore give fail!\r\n");
             return;
         }
     }

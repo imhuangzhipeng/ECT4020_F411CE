@@ -33,7 +33,7 @@
 #if LOG_DEBUG
 
 #define LOG_PROTO(type, color, format, ...)        \
-    SEGGER_RTT_printf(0, "  %s%s" format "\r\n%s", \
+    SEGGER_RTT_printf(0, "%s%s" format "\r\n%s", \
                       color,                       \
                       type,                        \
                       ##__VA_ARGS__,               \
