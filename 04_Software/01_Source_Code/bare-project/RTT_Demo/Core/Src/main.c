@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "SEGGER_RTT.h"
 #include "elog.h"
+#include "user_rtt_printf.h"
 
 /* USER CODE END Includes */
 
@@ -109,18 +110,18 @@ int main(void)
 
   /************Use Easylog************/
   /* close printf buffer */
-  setbuf(stdout, NULL);
+  // setbuf(stdout, NULL);
   /* initialize EasyLogger */
-  elog_init();
+  // elog_init();
   /* set EasyLogger log format */
-  elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_ALL);
-  elog_set_fmt(ELOG_LVL_ERROR, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
-  elog_set_fmt(ELOG_LVL_WARN, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
-  elog_set_fmt(ELOG_LVL_INFO, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
-  elog_set_fmt(ELOG_LVL_DEBUG, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
-  elog_set_fmt(ELOG_LVL_VERBOSE, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+  // elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_ALL);
+  // elog_set_fmt(ELOG_LVL_ERROR, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  // elog_set_fmt(ELOG_LVL_WARN, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  // elog_set_fmt(ELOG_LVL_INFO, ELOG_FMT_LVL | ELOG_FMT_TAG | ELOG_FMT_TIME);
+  // elog_set_fmt(ELOG_LVL_DEBUG, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
+  // elog_set_fmt(ELOG_LVL_VERBOSE, ELOG_FMT_ALL & ~ELOG_FMT_FUNC);
   /* start EasyLogger */
-  elog_start();
+  // elog_start();
   
   /* USER CODE END 2 */
 
@@ -133,7 +134,11 @@ int main(void)
     // HAL_Delay(1000);
 
     /* test easylogger output */
-    test_elog();
+    // test_elog();
+    // HAL_Delay(1000);
+
+    /* 封装RTT库接口 */
+    LOGI("[%d] Hello world!", HAL_GetTick());
     HAL_Delay(1000);
 
     /* USER CODE END WHILE */
