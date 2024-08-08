@@ -98,6 +98,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  // HAL_ADCEx_Calibration_Start(&hadc1); // ADC校准
 
   /* USER CODE END 2 */
 
